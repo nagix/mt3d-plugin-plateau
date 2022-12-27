@@ -1,0 +1,45 @@
+{
+  "name": "mt3d-plugin-plateau",
+  "version": "0.1.0",
+  "description": "PLATEAU plugin for Mini Tokyo 3D",
+  "main": "dist/mt3d-plugin-plateau.js",
+  "module": "dist/mt3d-plugin-plateau.esm.js",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^24.0.0",
+    "@rollup/plugin-image": "^3.0.1",
+    "@rollup/plugin-node-resolve": "^15.0.1",
+    "@rollup/plugin-replace": "^5.0.1",
+    "@rollup/plugin-strip": "^3.0.2",
+    "@rollup/plugin-terser": "^0.2.1",
+    "eslint": "^8.22.0",
+    "eslint-config-mourner": "^3.0.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-jsdoc": "^39.3.6",
+    "mini-tokyo-3d": "^3.2.0",
+    "rollup": "^3.8.1"
+  },
+  "peerDependencies": {
+    "mini-tokyo-3d": "^3.2.0"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "lint": "eslint --cache --ignore-path .gitignore src"
+  },
+  "files": [
+    "build/",
+    "dist/mt3d-plugin-plateau.*",
+    "src/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nagix/mt3d-plugin-plateau.git"
+  },
+  "author": "Akihiko Kusanagi",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nagix/mt3d-plugin-plateau/issues"
+  },
+  "homepage": "https://minitokyo3d.com",
+  "jsdelivr": "dist/mt3d-plugin-plateau.min.js",
+  "unpkg": "dist/mt3d-plugin-plateau.min.js"
+}
