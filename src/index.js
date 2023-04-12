@@ -123,11 +123,14 @@ class PlateauPlugin {
     }
 
     onVisibilityChanged(visible) {
-        const me = this;
+        const me = this,
+            {map} = me;
 
-        me.map.setLayerVisibility('plateau-ortho', visible ? 'visible' : 'none');
-        for (const model of models) {
-            me.map.setLayerVisibility(`tile-3d-${model}`, visible ? 'visible' : 'none');
+        if (map.map.getLayer('plateau-ortho')) {
+            map.setLayerVisibility('plateau-ortho', visible ? 'visible' : 'none');
+            for (const model of models) {
+                map.setLayerVisibility(`tile-3d-${model}`, visible ? 'visible' : 'none');
+            }
         }
     }
 
