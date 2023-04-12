@@ -106,14 +106,14 @@ class PlateauPlugin {
             {map, lastRefresh, _tick} = me,
             now = map.clock.getTime();
 
-        if (Math.floor(now / 60000) !== Math.floor(lastRefresh / 60000)) {
-            const {r, g, b} = map.getLightColor(),
-                luminance = .2126 * r + .7152 * g + .0722 * b;
-
-            map.map.setPaintProperty('plateau-ortho', 'raster-brightness-max', luminance);
-            me.lastRefresh = now;
-        }
         if (map.map.getLayer('plateau-ortho')) {
+            if (Math.floor(now / 60000) !== Math.floor(lastRefresh / 60000)) {
+                const {r, g, b} = map.getLightColor(),
+                    luminance = .2126 * r + .7152 * g + .0722 * b;
+
+                map.map.setPaintProperty('plateau-ortho', 'raster-brightness-max', luminance);
+                me.lastRefresh = now;
+            }
             requestAnimationFrame(_tick);
         }
     }
