@@ -10,7 +10,7 @@ const pkg = JSON.parse(fs.readFileSync('package.json'));
 const banner = `/*!
  * mt3d-plugin-plateau v${pkg.version}
  * ${pkg.homepage}
- * (c) ${new Date().getFullYear()} ${pkg.author}
+ * (c) 2022-${new Date().getFullYear()} ${pkg.author}
  * Released under the ${pkg.license} license
  */`;
 

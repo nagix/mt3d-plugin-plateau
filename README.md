@@ -23,10 +23,18 @@ Then, create a MiniTokyo3D instance specifying the `plugins` property, which is 
 <script>
     const map = new mt3d.MiniTokyo3D({
         container: 'map',
-        plugins: [mt3dPlateau()]
+        plugins: [mt3dPlateau({enabled: true})]
     });
 </script>
 ```
+
+## Options
+
+The plugin accepts the following options.
+
+| Name | Type | Default | Description
+| :-- | :-- | :-- | :--
+| **`options.enabled`** | `boolean` | `true` | If `false`, the plug-in will be initially disabled.
 
 ## About Data
 
