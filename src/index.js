@@ -18,6 +18,7 @@ class PlateauPlugin {
         me.id = 'plateau';
         me.name = {
             en: 'PLATEAU',
+            es: 'PLATEAU',
             fr: 'PLATEAU',
             ja: 'PLATEAU',
             ko: 'PLATEAU',
