@@ -1,14 +1,19 @@
 import plateauSVG from './plateau.svg';
 
-const models = [
-    '13101_chiyoda-ku/low_resolution',
-    '13102_chuo-ku/low_resolution',
-    '13103_minato-ku/low_resolution',
-    '13104_shinjuku-ku/low_resolution',
-    '13109_shinagawa-ku/low_resolution',
-    '13113_shibuya-ku/low_resolution',
-    '13116_toshima-ku/low_resolution'
-];
+// Model URL
+const MODEL_URL = 'https://mini-tokyo.appspot.com/plateau-models.geojson';
+
+// GSI Ortho URL
+const GSI_ORTHO_URL = 'https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg';
+
+// GSI Ortho Attribution
+const GSI_ORTHO_ATTRIBUTION = '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>';
+
+// PLATEAU Ortho URL
+const PLATEAU_ORTHO_URL = 'https://api.plateauview.mlit.go.jp/tiles/plateau-ortho-2023/{z}/{x}/{y}.png';
+
+// PLATEAU Ortho Attribution
+const PLATEAU_ORTHO_ATTRIBUTION = '<a href="https://www.mlit.go.jp/plateau/">国土交通省Project PLATEAU</a>';
 
 class PlateauPlugin {
 
@@ -35,103 +40,156 @@ class PlateauPlugin {
         me.viewModes = ['ground'];
         me.enabled = options && options.enabled;
         me._tick = me._tick.bind(me);
+        me._updateLayers = me._updateLayers.bind(me);
+        me._layers = new Set();
     }
 
     onAdd(map) {
-        const me = this;
-
-        me.map = map;
+        this.map = map;
     }
 
     onRemove(map) {
-        map.removeLayer('plateau-ortho');
-        for (const model of models) {
-            map.removeLayer(`tile-3d-${model}`);
+        for (const id of ['gsi-ortho', 'plateau-ortho', 'plateau-model']) {
+            map.removeLayer(id);
         }
-        map.map.removeSource('plateau-ortho');
+        for (const code of this._layer) {
+            map.removeLayer(`tile-3d-${code}`);
+        }
     }
 
     onEnabled() {
-        const me = this,
-            {map} = me;
+        const {map, _tick, _updateLayers} = this;
 
         map.setLayerVisibility('building-3d', 'none');
 
-        if (map.map.getLayer('plateau-ortho')) {
+        if (map.getMapboxMap().getLayer('plateau-ortho')) {
             return;
         }
 
-        map.map.addSource('plateau-ortho', {
+        map.addLayer({
+            id: 'gsi-ortho',
             type: 'raster',
-            tiles: [
-                'https://gic-plateau.s3.ap-northeast-1.amazonaws.com/2020/ortho/tiles/{z}/{x}/{y}.png'
-            ],
-            maxzoom: 19,
-            minzoom: 10,
-            attribution: '<a href="https://www.mlit.go.jp/plateau/">国土交通省Project PLATEAU</a>'
-        });
+            source: {
+                type: 'raster',
+                tiles: [GSI_ORTHO_URL],
+                maxzoom: 18,
+                minzoom: 2,
+                attribution: GSI_ORTHO_ATTRIBUTION
+            }
+        }, 'stations-marked-13');
         map.addLayer({
             id: 'plateau-ortho',
             type: 'raster',
-            source: 'plateau-ortho'
+            source: {
+                type: 'raster',
+                tiles: [PLATEAU_ORTHO_URL],
+                maxzoom: 19,
+                minzoom: 10,
+                attribution: PLATEAU_ORTHO_ATTRIBUTION
+            }
+        }, 'stations-marked-13');
+        map.addLayer({
+            id: 'plateau-model',
+            type: 'fill',
+            source: {
+                type: 'geojson',
+                data: MODEL_URL
+            },
+            paint: {
+                'fill-opacity': 0
+            }
         }, 'stations-marked-13');
 
-        for (const model of models) {
-            map.addLayer({
-                id: `tile-3d-${model}`,
-                type: 'tile-3d',
-                data: `https://plateau.geospatial.jp/main/data/3d-tiles/bldg/13100_tokyo/${model}/tileset.json`,
-                opacity: 0.8,
-                onTileLoad: d => {
-                    const {content} = d,
-                        buffer = content.batchTableBinary.buffer,
-                        key = content.batchTableJson,
-                        len = key._gml_id.length,
-                        zMinView = new DataView(buffer, key._zmin.byteOffset, len * 8),
-                        zMins = [];
+        _tick();
 
-                    for (let i = 0; i < len; i++) {
-                        zMins.push(zMinView.getFloat64(i * 8, true));
-                    }
-                    zMins.sort((a, b) => a - b);
-                    content.cartographicOrigin.z -= 36.6641 + zMins[Math.floor(len / 2)];
-                }
-            });
-        }
-
-        me._tick();
+        map.on('move', _updateLayers);
     }
 
     _tick() {
         const me = this,
             {map, lastRefresh, _tick} = me,
+            mapboxMap = map.getMapboxMap(),
             now = map.clock.getTime();
 
-        if (map.map.getLayer('plateau-ortho')) {
+        if (mapboxMap.getLayer('plateau-ortho')) {
             if (Math.floor(now / 60000) !== Math.floor(lastRefresh / 60000)) {
                 const {r, g, b} = map.getLightColor(),
                     luminance = .2126 * r + .7152 * g + .0722 * b;
 
-                map.map.setPaintProperty('plateau-ortho', 'raster-brightness-max', luminance);
+                for (const id of ['gsi-ortho', 'plateau-ortho']) {
+                    mapboxMap.setPaintProperty(id, 'raster-brightness-max', luminance);
+                }
                 me.lastRefresh = now;
             }
             requestAnimationFrame(_tick);
         }
     }
 
+    _updateLayers() {
+        const {map, _layers: layers} = this,
+            {width, height} = map.container.getBoundingClientRect(),
+            features = map.getMapboxMap().queryRenderedFeatures([width / 2, height / 2], {layers: ['plateau-model']}),
+            layersToRemove = new Set(layers);
+
+        for (const feature of features) {
+            const {code, url} = feature.properties;
+
+            layersToRemove.delete(code);
+            if (!layers.has(code)) {
+                map.addLayer({
+                    id: `tile-3d-${code}`,
+                    type: 'tile-3d',
+                    data: url,
+                    minzoom: 13,
+                    opacity: 0.8,
+                    onTileLoad: ({content}) => {
+                        const key = content.batchTableJson;
+
+                        if (key._zmin) {
+                            const buffer = content.batchTableBinary.buffer,
+                                len = key.gml_id.length,
+                                zMinView = new DataView(buffer, key._zmin.byteOffset, len * 8),
+                                zMins = [];
+
+                            for (let i = 0; i < len; i++) {
+                                zMins.push(zMinView.getFloat64(i * 8, true));
+                            }
+                            zMins.sort((a, b) => a - b);
+                            content.cartographicOrigin.z -= zMins[Math.floor(len / 2)];
+                        }
+                        content.cartographicOrigin.z -= 36.6641;
+                    }
+                });
+                layers.add(code);
+            }
+        }
+        for (const code of layersToRemove) {
+            map.removeLayer(`tile-3d-${code}`);
+            layers.delete(code);
+        }
+    }
+
     onDisabled() {
-        this.map.setLayerVisibility('building-3d', 'visible');
+        const {map, _updateLayers} = this;
+
+        map.setLayerVisibility('building-3d', 'visible');
+        map.off('move', _updateLayers);
     }
 
     onVisibilityChanged(visible) {
-        const me = this,
-            {map} = me;
+        const {map, _layers, _updateLayers} = this,
+            mapboxMap = map.getMapboxMap();
 
-        if (map.map.getLayer('plateau-ortho')) {
-            map.setLayerVisibility('plateau-ortho', visible ? 'visible' : 'none');
-            for (const model of models) {
-                map.setLayerVisibility(`tile-3d-${model}`, visible ? 'visible' : 'none');
+        if (mapboxMap.getLayer('plateau-ortho')) {
+            const visibility = visible ? 'visible' : 'none';
+
+            for (const id of ['gsi-ortho', 'plateau-ortho', 'plateau-model']) {
+                map.setLayerVisibility(id, visibility);
             }
+            for (const code of _layers) {
+                map.setLayerVisibility(`tile-3d-${code}`, visibility);
+            }
+            mapboxMap.once('idle', _updateLayers);
         }
     }
 
