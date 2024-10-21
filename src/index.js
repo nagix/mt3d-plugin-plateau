@@ -143,21 +143,26 @@ class PlateauPlugin {
                     minzoom: 13,
                     opacity: 0.8,
                     onTileLoad: ({content}) => {
-                        const key = content.batchTableJson;
+                        const zmin = content.batchTableJson._zmin,
+                            cartographicOrigin = content.cartographicOrigin;
 
-                        if (key._zmin) {
+                        if (zmin) {
                             const buffer = content.batchTableBinary.buffer,
-                                len = key.gml_id.length,
-                                zMinView = new DataView(buffer, key._zmin.byteOffset, len * 8),
+                                len = content.featureTableJson.BATCH_LENGTH,
+                                zMinView = new DataView(buffer, zmin.byteOffset, len * 8),
                                 zMins = [];
 
                             for (let i = 0; i < len; i++) {
                                 zMins.push(zMinView.getFloat64(i * 8, true));
                             }
                             zMins.sort((a, b) => a - b);
-                            content.cartographicOrigin.z -= zMins[Math.floor(len / 2)];
+                            cartographicOrigin.z -= zMins[Math.floor(len / 2)];
                         }
-                        content.cartographicOrigin.z -= 36.6641;
+                        cartographicOrigin.z -= 36.6641;
+                        content.featureTableBinary = null;
+                        content.featureTableJson = null;
+                        content.batchTableBinary = null;
+                        content.batchTableJson = null;
                     }
                 });
                 layers.add(code);
