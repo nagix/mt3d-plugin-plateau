@@ -140,6 +140,11 @@ class PlateauPlugin {
                     id: `tile-3d-${code}`,
                     type: 'tile-3d',
                     data: url,
+                    loadOptions: {
+                        tileset: {
+                            throttleRequests: false,
+                        }
+                    },
                     minzoom: 13,
                     opacity: 0.8,
                     onTileLoad: ({content}) => {
@@ -163,6 +168,16 @@ class PlateauPlugin {
                         content.featureTableJson = null;
                         content.batchTableBinary = null;
                         content.batchTableJson = null;
+
+                        for (const item of content.gltf.images || []) {
+                            const image = item.image,
+                                resizeWidth = image.width / 4,
+                                resizeHeight = image.height / 4;
+
+                            createImageBitmap(image, {resizeWidth, resizeHeight}).then(resizedImage => {
+                                item.image = resizedImage;
+                            });
+                        }
                     }
                 });
                 layers.add(code);
