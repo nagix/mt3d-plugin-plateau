@@ -59,9 +59,12 @@ class PlateauPlugin {
     }
 
     onEnabled() {
-        const {map, _tick, _updateLayers} = this;
+        const {map, _updateLayers} = this,
+            mapboxMap = map.getMapboxMap();
 
-        if (map.getMapboxMap().getLayer('plateau-ortho')) {
+        mapboxMap.on('idle', _updateLayers);
+
+        if (mapboxMap.getLayer('plateau-ortho')) {
             return;
         }
 
@@ -105,10 +108,6 @@ class PlateauPlugin {
                 'fill-opacity': 0
             }
         }, 'stations-marked-13');
-
-        _tick();
-
-        map.on('move', _updateLayers);
     }
 
     _tick() {
@@ -218,11 +217,11 @@ class PlateauPlugin {
     onDisabled() {
         const {map, _updateLayers} = this;
 
-        map.off('move', _updateLayers);
+        map.getMapboxMap().off('idle', _updateLayers);
     }
 
     onVisibilityChanged(visible) {
-        const {map, _layers, _updateLayers} = this,
+        const {map, _layers} = this,
             mapboxMap = map.getMapboxMap();
 
         if (mapboxMap.getLayer('plateau-ortho')) {
@@ -234,7 +233,6 @@ class PlateauPlugin {
             for (const code of _layers) {
                 map.setLayerVisibility(`tile-3d-${code}`, visibility);
             }
-            mapboxMap.once('idle', _updateLayers);
         }
     }
 
