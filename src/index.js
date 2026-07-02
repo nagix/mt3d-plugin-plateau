@@ -74,6 +74,9 @@ class PlateauPlugin {
                 maxzoom: 18,
                 minzoom: 2,
                 attribution: GSI_ORTHO_ATTRIBUTION
+            },
+            paint: {
+                'raster-emissive-strength': 0.3
             }
         }, 'stations-marked-13');
         map.addLayer({
@@ -85,6 +88,10 @@ class PlateauPlugin {
                 maxzoom: 19,
                 minzoom: 10,
                 attribution: PLATEAU_ORTHO_ATTRIBUTION
+            },
+            paint: {
+                'raster-emissive-strength': 0.2,
+                'raster-saturation': 0.2
             }
         }, 'stations-marked-13');
         map.addLayer({
@@ -176,6 +183,26 @@ class PlateauPlugin {
                             createImageBitmap(image, {resizeWidth, resizeHeight}).then(resizedImage => {
                                 item.image = resizedImage;
                             });
+                        }
+
+                        // The data ships materials with metallicFactor 0.5 and
+                        // roughnessFactor 0.3, which renders as a glossy half-metal.
+                        // Without an image based lighting environment that metallic
+                        // component has nothing to reflect, so untextured buildings
+                        // look like reflective grey and textured buildings lose half
+                        // of their albedo to specular. Turn them into matte dielectrics.
+                        for (const material of content.gltf.materials || []) {
+                            const pbr = material.pbrMetallicRoughness;
+
+                            if (pbr) {
+                                pbr.metallicFactor = 0;
+                                pbr.roughnessFactor = 0.8;
+                                // Untextured buildings use a flat color that is far
+                                // brighter than the linearized photo-texture albedo of
+                                // textured buildings, so dim it to rebalance.
+                                pbr.baseColorFactor = pbr.baseColorTexture ?
+                                    [1, 1, 1, 1] : [0.34, 0.32, 0.3, 1];
+                            }
                         }
                     }
                 });
