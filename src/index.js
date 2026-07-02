@@ -61,8 +61,6 @@ class PlateauPlugin {
     onEnabled() {
         const {map, _tick, _updateLayers} = this;
 
-        map.setLayerVisibility('building-3d', 'none');
-
         if (map.getMapboxMap().getLayer('plateau-ortho')) {
             return;
         }
@@ -193,7 +191,6 @@ class PlateauPlugin {
     onDisabled() {
         const {map, _updateLayers} = this;
 
-        map.setLayerVisibility('building-3d', 'visible');
         map.off('move', _updateLayers);
     }
 
