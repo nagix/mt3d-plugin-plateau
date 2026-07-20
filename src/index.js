@@ -15,6 +15,38 @@ const PLATEAU_ORTHO_URL = 'https://api.plateauview.mlit.go.jp/tiles/plateau-orth
 // PLATEAU Ortho Attribution
 const PLATEAU_ORTHO_ATTRIBUTION = '<a href="https://www.mlit.go.jp/plateau/">国土交通省Project PLATEAU</a>';
 
+// Reads the per-building _zmin values from a glTF's EXT_structural_metadata
+// property table (3D Tiles 1.1). Returns the valid values (noData filtered out),
+// or undefined when the extension or the _zmin property is absent.
+function getZMins(gltf) {
+    const metadata = gltf.extensions && gltf.extensions.EXT_structural_metadata;
+
+    if (!metadata) {
+        return;
+    }
+
+    const table = (metadata.propertyTables || []).find(({properties}) => properties && properties._zmin);
+
+    if (!table) {
+        return;
+    }
+
+    const {componentType, noData} = metadata.schema.classes[table.class].properties._zmin,
+        {data} = gltf.bufferViews[table.properties._zmin.values],
+        view = new DataView(data.buffer, data.byteOffset, data.byteLength),
+        float32 = componentType === 'FLOAT32',
+        zMins = [];
+
+    for (let i = 0; i < table.count; i++) {
+        const value = float32 ? view.getFloat32(i * 4, true) : view.getFloat64(i * 8, true);
+
+        if (value !== noData) {
+            zMins.push(value);
+        }
+    }
+    return zMins;
+}
+
 class PlateauPlugin {
 
     constructor(options) {
@@ -146,33 +178,75 @@ class PlateauPlugin {
                     type: 'tile-3d',
                     data: url,
                     loadOptions: {
+                        // Rewrite the tileset's 3D Tiles version to 0.0, which loaders.gl
+                        // accepts, before it is parsed. See
+                        // https://www.mlit.go.jp/plateau/learning/tpc30/#:~:text=3D%20Tiles%201.1%E3%81%A8deck.gl
+                        fetch: async (requestUrl, options) => {
+                            const response = await fetch(requestUrl, options);
+
+                            if (requestUrl !== url) {
+                                return response;
+                            }
+
+                            const json = await response.json();
+
+                            if (json.asset && json.asset.version === '1.1') {
+                                json.asset.version = '0.0';
+                            }
+
+                            const patched = new Response(JSON.stringify(json), {
+                                status: response.status,
+                                statusText: response.statusText,
+                                headers: response.headers
+                            });
+
+                            // A hand-built Response has an empty url, but loaders.gl reads
+                            // response.url to tell a tileset (.json) from tile content, so
+                            // carry the original url over.
+                            Object.defineProperty(patched, 'url', {value: response.url});
+
+                            return patched;
+                        },
                         tileset: {
-                            throttleRequests: false,
+                            throttleRequests: false
                         }
                     },
                     minzoom: 13,
                     opacity: 0.8,
                     onTileLoad: ({content}) => {
-                        const zmin = content.batchTableJson._zmin,
-                            cartographicOrigin = content.cartographicOrigin;
+                        const cartographicOrigin = content.cartographicOrigin;
 
-                        if (zmin) {
-                            const buffer = content.batchTableBinary.buffer,
-                                len = content.featureTableJson.BATCH_LENGTH,
-                                zMinView = new DataView(buffer, zmin.byteOffset, len * 8),
+                        // Per-building minimum heights (_zmin) live in the batch table in
+                        // 3D Tiles 1.0 (.b3dm) and in the glTF EXT_structural_metadata
+                        // property table in 3D Tiles 1.1 (.glb). Shift the tile down by
+                        // their median so the buildings sit on the ground.
+                        let zMins;
+
+                        if (content.batchTableJson) {
+                            const zmin = content.batchTableJson._zmin;
+
+                            if (zmin) {
+                                const len = content.featureTableJson.BATCH_LENGTH,
+                                    view = new DataView(content.batchTableBinary.buffer, zmin.byteOffset, len * 8);
+
                                 zMins = [];
-
-                            for (let i = 0; i < len; i++) {
-                                zMins.push(zMinView.getFloat64(i * 8, true));
+                                for (let i = 0; i < len; i++) {
+                                    zMins.push(view.getFloat64(i * 8, true));
+                                }
                             }
+                            content.featureTableBinary = null;
+                            content.featureTableJson = null;
+                            content.batchTableBinary = null;
+                            content.batchTableJson = null;
+                        } else {
+                            zMins = getZMins(content.gltf);
+                        }
+
+                        if (zMins && zMins.length) {
                             zMins.sort((a, b) => a - b);
-                            cartographicOrigin.z -= zMins[Math.floor(len / 2)];
+                            cartographicOrigin.z -= zMins[Math.floor(zMins.length / 2)];
                         }
                         cartographicOrigin.z -= 36.6641;
-                        content.featureTableBinary = null;
-                        content.featureTableJson = null;
-                        content.batchTableBinary = null;
-                        content.batchTableJson = null;
 
                         for (const item of content.gltf.images || []) {
                             const image = item.image,
