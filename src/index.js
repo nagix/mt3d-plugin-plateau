@@ -72,7 +72,6 @@ class PlateauPlugin {
         };
         me.viewModes = ['ground'];
         me.enabled = options && options.enabled;
-        me._tick = me._tick.bind(me);
         me._updateLayers = me._updateLayers.bind(me);
         me._layers = new Set();
     }
@@ -140,26 +139,6 @@ class PlateauPlugin {
                 'fill-opacity': 0
             }
         }, 'stations-marked-13');
-    }
-
-    _tick() {
-        const me = this,
-            {map, lastRefresh, _tick} = me,
-            mapboxMap = map.getMapboxMap(),
-            now = map.clock.getTime();
-
-        if (mapboxMap.getLayer('plateau-ortho')) {
-            if (Math.floor(now / 60000) !== Math.floor(lastRefresh / 60000)) {
-                const {r, g, b} = map.getLightColor(),
-                    luminance = .2126 * r + .7152 * g + .0722 * b;
-
-                for (const id of ['gsi-ortho', 'plateau-ortho']) {
-                    mapboxMap.setPaintProperty(id, 'raster-brightness-max', luminance);
-                }
-                me.lastRefresh = now;
-            }
-            requestAnimationFrame(_tick);
-        }
     }
 
     _updateLayers() {
