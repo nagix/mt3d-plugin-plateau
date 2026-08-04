@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'node:fs';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import image from '@rollup/plugin-image';
@@ -16,9 +16,8 @@ const banner = `/*!
 export default [{
     input: 'src/index.js',
     output: {
-        name: 'mt3dPlateau',
-        file: `dist/${pkg.name}.js`,
-        format: 'umd',
+        file: `dist/${pkg.name}.cjs`,
+        format: 'cjs',
         indent: false,
         sourcemap: true,
         banner
@@ -65,6 +64,7 @@ export default [{
         file: pkg.module,
         format: 'esm',
         indent: false,
+        sourcemap: true,
         banner
     },
     external: ['mini-tokyo-3d'],

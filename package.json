@@ -2,7 +2,7 @@
   "name": "mt3d-plugin-plateau",
   "version": "0.2.0",
   "description": "PLATEAU plugin for Mini Tokyo 3D",
-  "main": "dist/mt3d-plugin-plateau.js",
+  "main": "dist/mt3d-plugin-plateau.cjs",
   "module": "dist/mt3d-plugin-plateau.esm.js",
   "devDependencies": {
     "@eslint/compat": "^2.1.0",
