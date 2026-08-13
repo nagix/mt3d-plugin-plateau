@@ -84,7 +84,7 @@ class PlateauPlugin {
         for (const id of ['gsi-ortho', 'plateau-ortho', 'plateau-model']) {
             map.removeLayer(id);
         }
-        for (const code of this._layer) {
+        for (const code of this._layers) {
             map.removeLayer(`tile-3d-${code}`);
         }
     }
