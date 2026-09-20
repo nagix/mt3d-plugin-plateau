@@ -257,7 +257,7 @@ class PlateauPlugin {
                             }
                         }
                     }
-                });
+                }, 'trees');
                 layers.add(code);
             }
         }
